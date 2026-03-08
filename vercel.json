@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "name": "promptshield-api",
+  "builds": [
+    {
+      "src": "app/main.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app/main.py"
+    }
+  ],
+  "env": {
+    "GROQ_API_KEY": "@groq_api_key",
+    "APP_ENV": "production",
+    "CORS_ORIGINS": "@cors_origins",
+    "RATE_LIMIT": "10/minute",
+    "MAX_CODE_SIZE_KB": "500",
+    "REQUEST_TIMEOUT": "30",
+    "CACHE_ENABLED": "false",
+    "CACHE_TTL_SECONDS": "300"
+  },
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 30,
+      "memory": 1024,
+      "runtime": "python3.11"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        },
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version"
+        }
+      ]
+    }
+  ],
+  "regions": ["iad1"],
+  "installCommand": "pip install -r requirements.txt"
+}
