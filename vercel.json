@@ -17,16 +17,6 @@
       "dest": "app/main.py"
     }
   ],
-  "env": {
-    "GROQ_API_KEY": "@groq_api_key",
-    "APP_ENV": "production",
-    "CORS_ORIGINS": "@cors_origins",
-    "RATE_LIMIT": "10/minute",
-    "MAX_CODE_SIZE_KB": "500",
-    "REQUEST_TIMEOUT": "30",
-    "CACHE_ENABLED": "false",
-    "CACHE_TTL_SECONDS": "300"
-  },
   "headers": [
     {
       "source": "/api/(.*)",
