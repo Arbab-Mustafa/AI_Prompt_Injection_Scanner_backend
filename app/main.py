@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import json
 
 # Load environment variables FIRST (before other imports that need them)
 load_dotenv()
@@ -12,6 +13,48 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import structlog
 from app.routes.scan import router as scan_router
+
+
+def _parse_csv_env(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _build_cors_origins() -> list[str]:
+    raw_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
+    origins: list[str] = []
+
+    if raw_cors_origins:
+        try:
+            parsed = json.loads(raw_cors_origins)
+            if isinstance(parsed, list):
+                origins.extend(str(origin).strip() for origin in parsed)
+            elif isinstance(parsed, str):
+                origins.extend(_parse_csv_env(parsed))
+        except json.JSONDecodeError:
+            origins.extend(_parse_csv_env(raw_cors_origins))
+
+    if not origins:
+        origins.append("http://localhost:5173")
+
+    extension_ids: list[str] = []
+    extension_ids.extend(_parse_csv_env(os.getenv("PROMPTSHIELD_EXTENSION_ID")))
+    extension_ids.extend(_parse_csv_env(os.getenv("CHROME_EXTENSION_ID")))
+    extension_ids.extend(_parse_csv_env(os.getenv("CHROME_EXTENSION_IDS")))
+
+    for extension_id in extension_ids:
+        origins.append(f"chrome-extension://{extension_id}")
+
+    normalized_origins: list[str] = []
+    for origin in origins:
+        candidate = origin.strip().rstrip("/")
+        if not candidate or "*" in candidate:
+            continue
+        if candidate not in normalized_origins:
+            normalized_origins.append(candidate)
+
+    return normalized_origins
 
 # Configure structured logging - DEBUG level for full visibility
 structlog.configure(
@@ -43,10 +86,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS configuration
-cors_origins = os.getenv("CORS_ORIGINS", '["http://localhost:5173"]')
-if isinstance(cors_origins, str):
-    import json
-    cors_origins = json.loads(cors_origins)
+cors_origins = _build_cors_origins()
 
 # SECURITY FIX: Removed wildcard chrome-extension regex
 # Use specific extension IDs only in CORS_ORIGINS environment variable
@@ -101,6 +141,12 @@ async def startup_event():
     if not os.getenv("GROQ_API_KEY"):
         logger.error("groq_api_key_missing")
         raise ValueError("GROQ_API_KEY environment variable is required")
+
+    if not any(origin.startswith("chrome-extension://") for origin in cors_origins):
+        logger.warning(
+            "chrome_extension_origin_missing",
+            message="No Chrome extension origin configured in CORS_ORIGINS or *_EXTENSION_ID environment variables",
+        )
     
     logger.info("promptshield_ready", cors_origins=cors_origins)
 
