@@ -15,6 +15,11 @@ import structlog
 from app.routes.scan import router as scan_router
 
 
+# Published Chrome Web Store extension ID fallback.
+# This keeps production functional even if Vercel env vars are missing.
+DEFAULT_EXTENSION_IDS = ["ppoigpencblphlaijhlfiaajmoaleinl"]
+
+
 def _parse_csv_env(value: str | None) -> list[str]:
     if not value:
         return []
@@ -48,6 +53,9 @@ def _build_cors_origins() -> list[str]:
     extension_ids.extend(_parse_csv_env(os.getenv("PROMPTSHIELD_EXTENSION_ID")))
     extension_ids.extend(_parse_csv_env(os.getenv("CHROME_EXTENSION_ID")))
     extension_ids.extend(_parse_csv_env(os.getenv("CHROME_EXTENSION_IDS")))
+
+    if not extension_ids:
+        extension_ids.extend(DEFAULT_EXTENSION_IDS)
 
     for extension_id in extension_ids:
         origins.append(f"chrome-extension://{extension_id}")
