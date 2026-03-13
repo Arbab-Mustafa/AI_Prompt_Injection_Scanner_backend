@@ -21,6 +21,12 @@ def _parse_csv_env(value: str | None) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _normalize_origin(origin: str) -> str:
+    """Normalize an origin entry from environment variables."""
+    candidate = origin.strip().strip('"').strip("'").rstrip("/")
+    return candidate
+
+
 def _build_cors_origins() -> list[str]:
     raw_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
     origins: list[str] = []
@@ -48,11 +54,17 @@ def _build_cors_origins() -> list[str]:
 
     normalized_origins: list[str] = []
     for origin in origins:
-        candidate = origin.strip().rstrip("/")
+        candidate = _normalize_origin(origin)
         if not candidate or "*" in candidate:
             continue
         if candidate not in normalized_origins:
             normalized_origins.append(candidate)
+
+    # Final safety fallback: never return an empty allowlist.
+    # This can happen when env values are present but invalid, such as
+    # chrome-extension://* which is intentionally filtered out above.
+    if not normalized_origins:
+        normalized_origins.append("http://localhost:5173")
 
     return normalized_origins
 
